@@ -1,4 +1,4 @@
-module QtMakie
+module QMLMakie
 
 import jlqml_jll
 
