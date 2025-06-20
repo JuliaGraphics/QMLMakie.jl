@@ -1,7 +1,5 @@
 module QMLMakie
 
-import jlqml_jll
-
 using GLMakie
 using CxxWrap
 using QML
@@ -13,10 +11,8 @@ using LinearAlgebra
 const enable_SSAO = Ref(false)
 const enable_FXAA = Ref(true)
 
-@wrapmodule jlqml_jll.get_libjlqml_path :define_julia_module_makie
-
 function __init__()
-  @initcxx
+  QML.define_julia_module_makie(QMLMakie)
 end
 
 mutable struct QMLGLContext
@@ -238,4 +234,4 @@ function on_context_destroy()
   return
 end
 
-end # module QtMakie
+end # module QMLMakie
