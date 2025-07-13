@@ -34,7 +34,7 @@ end
 const QML_SRC = QByteArray("""
 import QtQuick
 import QtQuick.Controls
-import org.julialang
+import jlqml
 
 ApplicationWindow {
   title: "Test"
