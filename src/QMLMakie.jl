@@ -4,9 +4,6 @@ using GLMakie
 using CxxWrap
 using QML
 using ModernGL
-using Colors
-using FixedPointNumbers
-using LinearAlgebra
 using Observables
 
 function __init__()

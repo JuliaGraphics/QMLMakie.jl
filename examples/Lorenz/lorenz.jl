@@ -4,7 +4,6 @@ using GLMakie
 set_theme!(theme_black())
 
 using CxxWrap
-using Makie
 using QML
 using QMLMakie
 QML.setGraphicsApi(QML.OpenGL)
