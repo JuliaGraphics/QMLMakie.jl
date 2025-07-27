@@ -95,7 +95,7 @@ function Base.display(screen::GLMakie.Screen{QMLWindow}, scene::Scene)
   GLMakie.pollevents(screen, Makie.RegularRenderTick)
   GLMakie.poll_updates(screen)
   GLMakie.render_frame(screen)
-  
+
   win = qmlwindow(screen)
   w,h = win.window_area[].widths
 
