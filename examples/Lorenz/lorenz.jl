@@ -4,7 +4,6 @@ using GLMakie
 set_theme!(theme_black())
 
 using CxxWrap
-using Makie
 using QML
 using QMLMakie
 QML.setGraphicsApi(QML.OpenGL)
@@ -34,7 +33,7 @@ end
 const QML_SRC = QByteArray("""
 import QtQuick
 import QtQuick.Controls
-import org.julialang
+import jlqml
 
 ApplicationWindow {
   title: "Test"
