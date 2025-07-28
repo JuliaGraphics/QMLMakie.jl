@@ -6,10 +6,6 @@ using QML
 using ModernGL
 using Observables
 
-function __init__()
-  QML.define_julia_module_makie(QMLMakie)
-end
-
 mutable struct QMLGLContext
   valid::Bool
   fbo::CxxPtr{QML.QOpenGLFramebufferObject}
@@ -113,6 +109,18 @@ end
 
 function on_context_destroy()
   return
+end
+
+function renderfunction(screen::GLMakie.Screen{QMLWindow}, sceneorfigure)
+  display(screen, Makie.get_scene(sceneorfigure))
+  # Since the cfunction call specifies void, it is important that the renderfunction doesn't return anything.
+  return
+end
+
+function __init__()
+  QML.define_julia_module_makie(QMLMakie)
+  global _render_cfunc = @safe_cfunction(renderfunction, Cvoid, (Any,Any))
+  QML.set_default_makie_renderfunction(_render_cfunc)
 end
 
 end # module QMLMakie

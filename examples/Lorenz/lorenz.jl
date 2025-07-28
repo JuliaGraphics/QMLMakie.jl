@@ -44,7 +44,7 @@ ApplicationWindow {
   MakieViewport {
     id: lorenz
     anchors.fill: parent
-    renderFunction: redraw
+    scene: makiescene
   }
 
   Button {
@@ -90,10 +90,8 @@ end
 
 const QT_ENGINE = init_qmlengine()
 
-redraw(screen) = display(screen, fig.scene)
-
 ctx = root_context(QT_ENGINE)
-set_context_property(ctx, "redraw", @safe_cfunction(redraw, Cvoid, (Any,)))
+set_context_property(ctx, "makiescene", fig)
 QML.qmlfunction("step", step!)
 
 qcomp = QQmlComponent(QT_ENGINE)
