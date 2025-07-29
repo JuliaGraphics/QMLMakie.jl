@@ -18,28 +18,30 @@ end
 
 mutable struct QMLWindow
   context::QMLGLContext
+  pixelratio::Float64
   window_area::Observable{Rect2i}
-  qml_postprocessor::GLMakie.PostProcessor
+  fbo_size::Tuple{Int,Int}
 
-  @cxxdereference function QMLWindow(fbo::QML.QOpenGLFramebufferObject)
+  @cxxdereference function QMLWindow(fbo::QML.QOpenGLFramebufferObject, quickwin::CxxPtr{QML.QQuickWindow})
     ctx = QMLGLContext(true, CxxPtr(fbo))
-    win = new(ctx, Rect2i(0,0,0,0))
+    win = new(ctx, QML.effectiveDevicePixelRatio(quickwin), Rect2i(0,0,0,0), (0,0))
     return win
   end
 end
 
 qmlwindow(screen::GLMakie.Screen{QMLWindow}) = screen.glscreen
 
-function setup_screen(screen, fbo)
+function setup_screen(screen::GLMakie.Screen, fbo)
   win = qmlwindow(screen)
   win.context.fbo = fbo
-  win.window_area[] = Rect2i(0,0,sizetuple(fbo)...)
+  win.fbo_size = sizetuple(fbo)
+  win.window_area[] = Rect2i(0,0,round.(win.fbo_size ./ win.pixelratio)...)
   return screen
 end
 
-function setup_screen(fbo)
+function setup_screen(fbo, quickwin::CxxPtr{QML.QQuickWindow})
   try
-    screen = GLMakie.Screen(; window=QMLWindow(fbo), start_renderloop=false)
+    screen = GLMakie.Screen(; window=QMLWindow(fbo, quickwin), start_renderloop=false)
     return setup_screen(screen, fbo)
   catch exc
     showerror(stdout, exc, catch_backtrace())
@@ -74,7 +76,7 @@ GLMakie.reopen!(screen::GLMakie.Screen{QMLWindow}) = screen
 GLMakie.set_screen_visibility!(screen::GLMakie.Screen{QMLWindow}, visible::Bool) = nothing
 GLMakie.set_title!(screen::GLMakie.Screen{QMLWindow}, title::String) = nothing
 
-GLMakie.scale_factor(::QMLWindow) = 1.0 # TODO: Get the actual scale factor
+GLMakie.scale_factor(win::QMLWindow) = win.pixelratio
 
 function Makie.connect_screen(scene::Scene, screen::GLMakie.Screen{QMLWindow})
   connect!(scene.events.window_area, qmlwindow(screen).window_area)
@@ -93,16 +95,19 @@ function Base.display(screen::GLMakie.Screen{QMLWindow}, scene::Scene)
   GLMakie.render_frame(screen)
 
   win = qmlwindow(screen)
-  w,h = win.window_area[].widths
+
+  # Up to a potential rounding error, both of these should be the same
+  wmakie,hmakie = screen.framebuffer.resolution[]
+  wqml, hqml = win.fbo_size
 
   # Bind the QML FBO for drawing
   QML.bind(win.context.fbo)
   # Bind FBO 0 (used by GLMakie by default) as source
   glBindFramebuffer(GL_READ_FRAMEBUFFER, 0)
   # Copy the GLMakie color buffer to QML
-  glBlitFramebuffer(0, 0, w, h,
-                  0, 0, w, h,
-                  GL_COLOR_BUFFER_BIT, GL_NEAREST)
+  glBlitFramebuffer(0, 0, wmakie, hmakie,
+                  0, 0, wqml, hqml,
+                  GL_COLOR_BUFFER_BIT, GL_LINEAR)
 
   return
 end
