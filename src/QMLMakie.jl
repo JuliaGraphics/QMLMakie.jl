@@ -84,7 +84,8 @@ function Makie.connect_screen(scene::Scene, screen::GLMakie.Screen{QMLWindow})
 end
 
 function Makie.disconnect_screen(scene::Scene, screen::GLMakie.Screen{QMLWindow})
-  # TODO disconnect events here
+  qmlwin = qmlwindow(screen)
+  Observables.clear(qmlwin.window_area)
   return
 end
 
