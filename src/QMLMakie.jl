@@ -118,7 +118,12 @@ function on_context_destroy()
 end
 
 function renderfunction(screen::GLMakie.Screen{QMLWindow}, sceneorfigure)
-  display(screen, Makie.get_scene(sceneorfigure))
+  scene = Makie.get_scene(sceneorfigure)
+  if !Makie.is_displayed(screen, scene)
+    # This makes sure the axis is autoscaled as it is in the regular Makie
+    Makie.update_state_before_display!(sceneorfigure)
+  end
+  display(screen, scene)
   # Since the cfunction call specifies void, it is important that the renderfunction doesn't return anything.
   return
 end
