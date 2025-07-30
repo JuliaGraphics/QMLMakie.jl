@@ -1,14 +1,6 @@
-# QMLMakie
-This is a Julia package for bridging
-[Makie](https://docs.makie.org/stable/)
-and Qt via [QML.jl](https://github.com/JuliaGraphics/QML.jl).
-It allows embedding hardware-accelerated interactive plots in Qt applications.
+# Example based on the first Makie tutorial at:
+# https://docs.makie.org/stable/tutorials/getting-started
 
-## Quickstart
-
-The following example simply shows the first [lineplot example](https://docs.makie.org/stable/tutorials/getting-started) from the Makie documentation in a QML window. It uses the `MakieViewport` QML component that is provided by QML.jl, and then sets the `scene` property of that component to the Makie figure, by passing it to a QML context property named `plot`.
-
-```julia
 ENV["QSG_RENDER_LOOP"] = "basic"
 
 using GLMakie
@@ -55,5 +47,3 @@ mktemp() do qmlfile,_
   loadqml(qmlfile; plot = f)
   exec()
 end
-
-```
