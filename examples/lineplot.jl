@@ -6,6 +6,7 @@ ENV["QSG_RENDER_LOOP"] = "basic"
 using GLMakie
 using QMLMakie
 using QML
+QML.setGraphicsApi(QML.OpenGL)
 
 # Data
 seconds = 0:0.1:2
@@ -27,7 +28,8 @@ mktemp() do qmlfile,_
   qml = """
   import QtQuick
   import QtQuick.Controls
-  import jlqml
+  import QtQuick.Layouts
+  import Makie
 
   ApplicationWindow {
     title: "Makie plot"
@@ -35,11 +37,28 @@ mktemp() do qmlfile,_
     width: 640
     height: 480
 
-    MakieViewport {
+    ColumnLayout {
+      spacing: 1
       anchors.fill: parent
-      scene: plot
-    }
+      
+      MakieArea {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        scene: plot
+      }
+      Rectangle {
+        id: rect
+        color: "red"
+        
+        Layout.fillWidth: true
+        height: 30
 
+        TapHandler {
+          id: tapHandler
+          onTapped: { rect.forceActiveFocus(Qt.MouseFocusReason); }
+        }
+      }
+    }
   }
   """
 
