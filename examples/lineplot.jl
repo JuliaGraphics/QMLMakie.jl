@@ -14,14 +14,23 @@ measurements = [8.2, 8.4, 6.3, 9.5, 9.1, 10.5, 8.6, 8.2, 10.5, 8.5, 7.2,
         8.8, 9.7, 10.8, 12.5, 11.6, 12.1, 12.1, 15.1, 14.7, 13.1]
 
 # Makie plotting commands
-f = Figure()
-ax = Axis(f[1, 1],
+fig = Figure()
+ax = Axis(fig[1, 1],
     title = "Experimental data and exponential fit",
     xlabel = "Time (seconds)",
     ylabel = "Value",
 )
 scatter!(ax, seconds, measurements, color = :tomato)
 lines!(ax, seconds, exp.(seconds) .+ 7, color = :tomato, linestyle = :dash)
+
+on(events(fig).mousebutton, priority = 2) do event
+  if event.button == Mouse.left && event.action == Mouse.press
+    plt, i = pick(fig)
+    println("picked point $i of $plt")
+    return Consume(true)
+  end
+  return Consume(false)
+end
 
 # Build the QML interface and display the plot
 mktemp() do qmlfile,_
@@ -63,6 +72,6 @@ mktemp() do qmlfile,_
   """
 
   write(qmlfile, qml)
-  loadqml(qmlfile; plot = f)
+  loadqml(qmlfile; plot = fig)
   exec()
 end
