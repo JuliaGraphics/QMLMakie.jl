@@ -18,24 +18,25 @@ end
 
 mutable struct QMLWindow
   context::QMLGLContext
-  pixelratio::Float64
+  quickwin::CxxPtr{QML.QQuickWindow}
   window_area::Observable{Rect2i}
   fbo_size::Tuple{Int,Int}
 
-  @cxxdereference function QMLWindow(fbo::QML.QOpenGLFramebufferObject, quickwin::CxxPtr{QML.QQuickWindow})
-    ctx = QMLGLContext(true, CxxPtr(fbo))
-    win = new(ctx, QML.effectiveDevicePixelRatio(quickwin), Rect2i(0,0,0,0), (0,0))
+  function QMLWindow(fbo::CxxPtr{QML.QOpenGLFramebufferObject}, quickwin::CxxPtr{QML.QQuickWindow})
+    ctx = QMLGLContext(true, fbo)
+    win = new(ctx, quickwin, Rect2i(0,0,0,0), (0,0))
     return win
   end
 end
 
+qmlwindow(_) = nothing
 qmlwindow(screen::GLMakie.Screen{QMLWindow}) = screen.glscreen
 
 function setup_screen(screen::GLMakie.Screen, fbo)
   win = qmlwindow(screen)
   win.context.fbo = fbo
   win.fbo_size = sizetuple(fbo)
-  win.window_area[] = Rect2i(0,0,round.(win.fbo_size ./ win.pixelratio)...)
+  win.window_area[] = Rect2i(0,0,round.(win.fbo_size ./ QML.effectiveDevicePixelRatio(win.quickwin[]))...)
   return screen
 end
 
@@ -76,16 +77,18 @@ GLMakie.reopen!(screen::GLMakie.Screen{QMLWindow}) = screen
 GLMakie.set_screen_visibility!(screen::GLMakie.Screen{QMLWindow}, visible::Bool) = nothing
 GLMakie.set_title!(screen::GLMakie.Screen{QMLWindow}, title::String) = nothing
 
-GLMakie.scale_factor(win::QMLWindow) = win.pixelratio
+GLMakie.scale_factor(win::QMLWindow) = QML.effectiveDevicePixelRatio(win.quickwin[])
 
 function Makie.connect_screen(scene::Scene, screen::GLMakie.Screen{QMLWindow})
   connect!(scene.events.window_area, qmlwindow(screen).window_area)
+  Makie.frame_tick(scene, screen)
   return
 end
 
 function Makie.disconnect_screen(scene::Scene, screen::GLMakie.Screen{QMLWindow})
   qmlwin = qmlwindow(screen)
   Observables.clear(qmlwin.window_area)
+  disconnect!(screen, Makie.frame_tick)
   return
 end
 
@@ -113,7 +116,7 @@ function Base.display(screen::GLMakie.Screen{QMLWindow}, scene::Scene)
   return
 end
 
-function on_context_destroy()
+function on_context_destroy(screen)
   return
 end
 
@@ -128,10 +131,159 @@ function renderfunction(screen::GLMakie.Screen{QMLWindow}, sceneorfigure)
   return
 end
 
+function seteventvalue(::Nothing, eventname, _)
+  @warn "No scene is defined for the MakieArea. Set the scene property  in QML to pass  on events. Ignoring event $eventname"
+end
+
+function seteventvalue(scene, eventname, value)
+  events = Makie.events(scene)
+  eventproperty = getproperty(events, eventname)
+  eventproperty[] = value
+end
+
+const qt_to_makie_buttons = (
+  NoButton      = Makie.Mouse.none,
+  LeftButton    = Makie.Mouse.left,
+  RightButton   = Makie.Mouse.right,
+  MiddleButton  = Makie.Mouse.middle,
+  BackButton    = Makie.Mouse.button_4,
+  ForwardButton = Makie.Mouse.button_5,
+  TaskButton    = Makie.Mouse.button_6,
+  ExtraButton4  = Makie.Mouse.button_7,
+  ExtraButton5  = Makie.Mouse.button_8,
+)
+
+# Map a qt button code to the corresponding Makie code
+function qtbutton_to_makie(qtbutton)
+  try
+    makiebutton = qt_to_makie_buttons[Symbol(qtbutton)]
+    return getproperty(Makie.Mouse, Symbol(makiebutton))
+  catch e
+    @warn "Can't convert Qt buton $qtbutton, returning none"
+    return Makie.Mouse.none
+  end
+end
+
+# pixeldensity is in dots per mm, so we need to convert to dpi
+function dpi_changed(scene, pixeldensity, win)
+  quickwin = convert(CxxPtr{QML.QQuickWindow}, CxxPtr(win))
+  newpixelratio = QML.effectiveDevicePixelRatio(quickwin[])
+  for screen in Makie.get_scene(scene).current_screens
+    qmlwin = qmlwindow(screen)
+    if !isnothing(qmlwin) && qmlwin.quickwin == quickwin
+      screen.scalefactor[] = newpixelratio
+      screen.px_per_unit[] = newpixelratio
+      break
+    end
+  end
+  seteventvalue(scene, :window_dpi, pixeldensity*25.4)
+end
+on_window_close(scene) = seteventvalue(scene, :window_open, false)
+set_focus(scene, focus) = seteventvalue(scene, :hasfocus, focus)
+set_entered_window(scene, inwindow) = seteventvalue(scene, :entered_window, inwindow)
+
+function process_mouse_event(scene, buttonint, action)
+  qtbutton = QML.MouseButton(buttonint)
+  makiebutton = qtbutton_to_makie(qtbutton)
+  event = Makie.MouseButtonEvent(makiebutton, action)
+  if action == Makie.Mouse.press
+    push!(Makie.events(scene).mousebuttonstate, makiebutton)
+  else
+    delete!(Makie.events(scene).mousebuttonstate, makiebutton)
+  end
+  seteventvalue(scene, :mousebutton, event)
+end
+
+on_mouse_pressed(scene, buttonint) = process_mouse_event(scene, buttonint, Makie.Mouse.press)
+on_mouse_released(scene, buttonint) = process_mouse_event(scene, buttonint, Makie.Mouse.release)
+
+on_mouse_moved(scene, x, y) = seteventvalue(scene, :mouseposition, (x,y))
+function on_wheel(scene, anglex, angley, pixelx, pixely, wheelfactor)
+  if pixelx == pixely == 0
+    pixelx = anglex*wheelfactor
+    pixely = angley*wheelfactor
+  end
+  seteventvalue(scene, :scroll, (pixelx, pixely))
+end
+
+function qtkey_to_makie(qtkey)
+  if qtkey > 127
+    try
+      qtkeyenum = QML.Key(qtkey)
+      qtkeyenum == QML.Key_Escape && return Makie.Keyboard.escape
+      qtkeyenum == QML.Key_Enter && return Makie.Keyboard.enter
+      qtkeyenum == QML.Key_Return && return Makie.Keyboard.enter
+      qtkeyenum == QML.Key_Tab && return Makie.Keyboard.tab
+      qtkeyenum == QML.Key_Backspace && return Makie.Keyboard.backspace
+      qtkeyenum == QML.Key_Insert && return Makie.Keyboard.insert
+      qtkeyenum == QML.Key_Delete && return Makie.Keyboard.delete
+      qtkeyenum == QML.Key_Right && return Makie.Keyboard.right
+      qtkeyenum == QML.Key_Left && return Makie.Keyboard.left
+      qtkeyenum == QML.Key_Down && return Makie.Keyboard.down
+      qtkeyenum == QML.Key_Up && return Makie.Keyboard.up
+      qtkeyenum == QML.Key_PageUp && return Makie.Keyboard.page_up
+      qtkeyenum == QML.Key_PageDown && return Makie.Keyboard.page_down
+      qtkeyenum == QML.Key_Home && return Makie.Keyboard.home
+      qtkeyenum == QML.Key_End && return Makie.Keyboard._end
+      qtkeyenum == QML.Key_Alt && return Makie.Keyboard.left_alt
+      qtkeyenum == QML.Key_AltGr && return Makie.Keyboard.right_alt
+      qtkeyenum == QML.Key_Control && return Makie.Keyboard.left_control
+      qtkeyenum == QML.Key_Shift && return Makie.Keyboard.left_shift
+      qtkeyenum == QML.Key_Meta && return Makie.Keyboard.left_super
+      qtkeyenum == QML.Key_Menu && return Makie.Keyboard.right_super
+      @warn "not converting Qt key $qtkeyenum"
+      return Makie.Keyboard.unknown
+    catch
+      @warn "Unknown Qt key code: $qtkey"
+      return Makie.Keyboard.unknown
+    end
+  end
+  
+  return Makie.Keyboard.Button(qtkey)
+end
+
+function on_key_pressed(scene, qtkey, text, autorepeat)
+  action = autorepeat ? Makie.Keyboard.repeat : Makie.Keyboard.press
+  key = qtkey_to_makie(qtkey)
+  push!(Makie.events(scene).keyboardstate, key)
+  seteventvalue(scene, :keyboardbutton, Makie.KeyEvent(key, action))
+  if !isempty(text)
+    seteventvalue(scene, :unicode_input, String(text)[1])
+  end
+end
+
+function on_key_released(scene, qtkey)
+  key = qtkey_to_makie(qtkey)
+  delete!(Makie.events(scene).keyboardstate, key)
+  seteventvalue(scene, :keyboardbutton, Makie.KeyEvent(key, Makie.Keyboard.release))
+end
+
+function on_files_dropped(scene, urls)
+  filepaths = map(u -> String(QML.toString(u))[8:end], urls)
+  seteventvalue(scene, :dropped_files, filepaths)
+end
+
+function register_event_handlers()
+  @qmlfunction dpi_changed
+  @qmlfunction on_window_close
+  @qmlfunction set_focus
+  @qmlfunction set_entered_window
+  @qmlfunction on_mouse_pressed
+  @qmlfunction on_mouse_released
+  @qmlfunction on_mouse_moved
+  @qmlfunction on_wheel
+  @qmlfunction on_key_pressed
+  @qmlfunction on_key_released
+  @qmlfunction on_files_dropped
+end
+
 function __init__()
   QML.define_julia_module_makie(QMLMakie)
   global _render_cfunc = @safe_cfunction(renderfunction, Cvoid, (Any,Any))
   QML.set_default_makie_renderfunction(_render_cfunc)
+  QML.add_import_path(joinpath(@__DIR__, "qml"))
+
+  register_event_handlers()
 end
 
 end # module QMLMakie

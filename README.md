@@ -57,3 +57,8 @@ mktemp() do qmlfile,_
 end
 
 ```
+
+## Features
+
+* All [Makie events](https://docs.makie.org/stable/explanations/events) are linked to the corresponding events coming from QML
+* Proper support for scaled displays

@@ -1,8 +1,7 @@
 name = "QMLMakie"
 uuid = "08f9cac3-3b11-4f1c-9d88-d0e81c500f64"
-version = "0.2.0"
-authors = ["Steffen Haug <stehau@pm.me>",
-           "Bart Janssens <bart@bartjanssens.org>"]
+version = "0.3.0"
+authors = ["Steffen Haug <stehau@pm.me>", "Bart Janssens <bart@bartjanssens.org>"]
 
 [deps]
 CxxWrap = "1f15a43c-97ca-5a2a-ae31-89f07a497df4"
@@ -12,11 +11,11 @@ Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
 QML = "2db162a6-7e43-52c3-8d84-290c1c42d82a"
 
 [compat]
-CxxWrap = "0.17"
+CxxWrap = "0.17.3"
 GLMakie = "0.13"
 ModernGL = "1"
 Observables = "0.5"
-QML = "0.10.1"
+QML = "0.11"
 julia = "1.10"
 
 [extras]
