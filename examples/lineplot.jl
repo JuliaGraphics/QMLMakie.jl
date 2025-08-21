@@ -23,15 +23,6 @@ ax = Axis(fig[1, 1],
 scatter!(ax, seconds, measurements, color = :tomato)
 lines!(ax, seconds, exp.(seconds) .+ 7, color = :tomato, linestyle = :dash)
 
-on(events(fig).mousebutton, priority = 2) do event
-  if event.button == Mouse.left && event.action == Mouse.press
-    plt, i = pick(fig)
-    println("picked point $i of $plt")
-    return Consume(true)
-  end
-  return Consume(false)
-end
-
 # Build the QML interface and display the plot
 mktemp() do qmlfile,_
   qml = """
@@ -46,27 +37,9 @@ mktemp() do qmlfile,_
     width: 640
     height: 480
 
-    ColumnLayout {
-      spacing: 1
+    MakieArea {
       anchors.fill: parent
-      
-      MakieArea {
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        scene: plot
-      }
-      Rectangle {
-        id: rect
-        color: "red"
-        
-        Layout.fillWidth: true
-        height: 30
-
-        TapHandler {
-          id: tapHandler
-          onTapped: { rect.forceActiveFocus(Qt.MouseFocusReason); }
-        }
-      }
+      scene: plot
     }
   }
   """

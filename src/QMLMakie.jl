@@ -138,7 +138,6 @@ end
 function seteventvalue(scene, eventname, value)
   events = Makie.events(scene)
   eventproperty = getproperty(events, eventname)
-  #println("setting $eventname to $value")
   eventproperty[] = value
 end
 
@@ -172,7 +171,6 @@ function dpi_changed(scene, pixeldensity, win)
   for screen in Makie.get_scene(scene).current_screens
     qmlwin = qmlwindow(screen)
     if !isnothing(qmlwin) && qmlwin.quickwin == quickwin
-      @show screen.scalefactor[]
       screen.scalefactor[] = newpixelratio
       screen.px_per_unit[] = newpixelratio
       break
