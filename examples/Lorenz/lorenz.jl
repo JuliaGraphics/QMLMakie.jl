@@ -1,5 +1,3 @@
-ENV["QSG_RENDER_LOOP"] = "basic"
-
 using GLMakie
 set_theme!(theme_black())
 

@@ -6,14 +6,13 @@ It allows embedding hardware-accelerated interactive plots in Qt applications.
 
 ## Quickstart
 
-The following example simply shows the first [lineplot example](https://docs.makie.org/stable/tutorials/getting-started) from the Makie documentation in a QML window. It uses the `MakieViewport` QML component that is provided by QML.jl, and then sets the `scene` property of that component to the Makie figure, by passing it to a QML context property named `plot`.
+The following example simply shows the first [lineplot example](https://docs.makie.org/stable/tutorials/getting-started) from the Makie documentation in a QML window. It uses the `MakieArea` QML component that is provided by QMLMakie.jl (obtained using `import Makie` in QML), and then sets the `scene` property of that component to the Makie figure, by passing it to a QML context property named `plot`. The `MakieArea` component is an extension of the `MakieViewport` from QML.jl, adding handling of the events so e.g. mouse controls work.
 
 ```julia
-ENV["QSG_RENDER_LOOP"] = "basic"
-
 using GLMakie
 using QMLMakie
 using QML
+QML.setGraphicsApi(QML.OpenGL)
 
 # Data
 seconds = 0:0.1:2
@@ -21,8 +20,8 @@ measurements = [8.2, 8.4, 6.3, 9.5, 9.1, 10.5, 8.6, 8.2, 10.5, 8.5, 7.2,
         8.8, 9.7, 10.8, 12.5, 11.6, 12.1, 12.1, 15.1, 14.7, 13.1]
 
 # Makie plotting commands
-f = Figure()
-ax = Axis(f[1, 1],
+fig = Figure()
+ax = Axis(fig[1, 1],
     title = "Experimental data and exponential fit",
     xlabel = "Time (seconds)",
     ylabel = "Value",
@@ -35,7 +34,8 @@ mktemp() do qmlfile,_
   qml = """
   import QtQuick
   import QtQuick.Controls
-  import jlqml
+  import QtQuick.Layouts
+  import Makie
 
   ApplicationWindow {
     title: "Makie plot"
@@ -43,16 +43,15 @@ mktemp() do qmlfile,_
     width: 640
     height: 480
 
-    MakieViewport {
+    MakieArea {
       anchors.fill: parent
       scene: plot
     }
-
   }
   """
 
   write(qmlfile, qml)
-  loadqml(qmlfile; plot = f)
+  loadqml(qmlfile; plot = fig)
   exec()
 end
 
