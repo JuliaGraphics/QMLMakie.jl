@@ -35,6 +35,7 @@ qmlwindow(screen::GLMakie.Screen{QMLWindow}) = screen.glscreen
 function setup_screen(screen::GLMakie.Screen, fbo)
   win = qmlwindow(screen)
   win.context.fbo = fbo
+  screen.postprocessors[end] = GLMakie.to_screen_postprocessor(screen.framebuffer, screen.shader_cache, QML.handle(fbo))
   win.fbo_size = sizetuple(fbo)
   win.window_area[] = Rect2i(0,0,round.(win.fbo_size ./ QML.effectiveDevicePixelRatio(win.quickwin[]))...)
   return screen
@@ -87,9 +88,16 @@ end
 
 function Makie.disconnect_screen(scene::Scene, screen::GLMakie.Screen{QMLWindow})
   qmlwin = qmlwindow(screen)
+  sleep(0.3) # wait for delayed actions such as zoom or pan
   Observables.clear(qmlwin.window_area)
   disconnect!(screen, Makie.frame_tick)
   return
+end
+
+function GLMakie.pollevents(screen::GLMakie.Screen{QMLWindow}, frame_state::Makie.TickState)
+    GLMakie.gl_switch_context!(screen.glscreen)
+    screen.render_tick[] = frame_state
+    return
 end
 
 function Base.display(screen::GLMakie.Screen{QMLWindow}, scene::Scene)
@@ -97,21 +105,6 @@ function Base.display(screen::GLMakie.Screen{QMLWindow}, scene::Scene)
   GLMakie.pollevents(screen, Makie.RegularRenderTick)
   GLMakie.poll_updates(screen)
   GLMakie.render_frame(screen)
-
-  win = qmlwindow(screen)
-
-  # Up to a potential rounding error, both of these should be the same
-  wmakie,hmakie = screen.framebuffer.resolution[]
-  wqml, hqml = win.fbo_size
-
-  # Bind the QML FBO for drawing
-  QML.bind(win.context.fbo)
-  # Bind FBO 0 (used by GLMakie by default) as source
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0)
-  # Copy the GLMakie color buffer to QML
-  glBlitFramebuffer(0, 0, wmakie, hmakie,
-                  0, 0, wqml, hqml,
-                  GL_COLOR_BUFFER_BIT, GL_LINEAR)
 
   return
 end
@@ -121,12 +114,16 @@ function on_context_destroy(screen)
 end
 
 function renderfunction(screen::GLMakie.Screen{QMLWindow}, sceneorfigure)
-  scene = Makie.get_scene(sceneorfigure)
-  if !Makie.is_displayed(screen, scene)
-    # This makes sure the axis is autoscaled as it is in the regular Makie
-    Makie.update_state_before_display!(sceneorfigure)
+  try
+    scene = Makie.get_scene(sceneorfigure)
+    if !Makie.is_displayed(screen, scene)
+      # This makes sure the axis is autoscaled as it is in the regular Makie
+      Makie.update_state_before_display!(sceneorfigure)
+    end
+    display(screen, scene)
+  catch
+    Core.println("exception in render")
   end
-  display(screen, scene)
   # Since the cfunction call specifies void, it is important that the renderfunction doesn't return anything.
   return
 end

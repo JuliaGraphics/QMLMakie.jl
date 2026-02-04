@@ -1,8 +1,6 @@
 # Example based on the first Makie tutorial at:
 # https://docs.makie.org/stable/tutorials/getting-started
 
-ENV["QSG_RENDER_LOOP"] = "basic"
-
 using GLMakie
 using QMLMakie
 using QML
