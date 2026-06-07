@@ -12,7 +12,6 @@ The following example simply shows the first [lineplot example](https://docs.mak
 using GLMakie
 using QMLMakie
 using QML
-QML.setGraphicsApi(QML.OpenGL)
 
 # Data
 seconds = 0:0.1:2

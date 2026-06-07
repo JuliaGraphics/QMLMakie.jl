@@ -275,6 +275,7 @@ function register_event_handlers()
 end
 
 function __init__()
+  QML.setGraphicsApi(QML.OpenGL)
   QML.define_julia_module_makie(QMLMakie)
   global _render_cfunc = @safe_cfunction(renderfunction, Cvoid, (Any,Any))
   QML.set_default_makie_renderfunction(_render_cfunc)

@@ -4,7 +4,6 @@
 using GLMakie
 using QMLMakie
 using QML
-QML.setGraphicsApi(QML.OpenGL)
 
 # Data
 seconds = 0:0.1:2

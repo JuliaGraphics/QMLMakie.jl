@@ -4,8 +4,6 @@ set_theme!(theme_black())
 using CxxWrap
 using QML
 using QMLMakie
-QML.setGraphicsApi(QML.OpenGL)
-
 
 Base.@kwdef mutable struct Lorenz
   frame::Int64 = 0
