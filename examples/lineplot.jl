@@ -20,6 +20,8 @@ ax = Axis(fig[1, 1],
 scatter!(ax, seconds, measurements, color = :tomato)
 lines!(ax, seconds, exp.(seconds) .+ 7, color = :tomato, linestyle = :dash)
 
+di = DataInspector(fig)
+
 # Build the QML interface and display the plot
 mktemp() do qmlfile,_
   qml = """
@@ -43,5 +45,5 @@ mktemp() do qmlfile,_
 
   write(qmlfile, qml)
   loadqml(qmlfile; plot = fig)
-  exec()
+  exec_async() # Must be async for the DataInspector to work
 end

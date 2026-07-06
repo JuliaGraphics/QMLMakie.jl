@@ -82,6 +82,7 @@ GLMakie.scale_factor(win::QMLWindow) = QML.effectiveDevicePixelRatio(win.quickwi
 
 function Makie.connect_screen(scene::Scene, screen::GLMakie.Screen{QMLWindow})
   connect!(scene.events.window_area, qmlwindow(screen).window_area)
+  Makie.events(scene).window_open[] = true
   Makie.frame_tick(scene, screen)
   return
 end
@@ -89,6 +90,7 @@ end
 function Makie.disconnect_screen(scene::Scene, screen::GLMakie.Screen{QMLWindow})
   qmlwin = qmlwindow(screen)
   sleep(0.3) # wait for delayed actions such as zoom or pan
+  Makie.events(scene).window_open[] = false
   Observables.clear(qmlwin.window_area)
   disconnect!(screen, Makie.frame_tick)
   return

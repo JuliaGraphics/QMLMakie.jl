@@ -1,6 +1,6 @@
 name = "QMLMakie"
 uuid = "08f9cac3-3b11-4f1c-9d88-d0e81c500f64"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Steffen Haug <stehau@pm.me>", "Bart Janssens <bart@bartjanssens.org>"]
 
 [deps]
