@@ -43,6 +43,9 @@ end
 
 function setup_screen(fbo, quickwin::CxxPtr{QML.QQuickWindow})
   try
+    if !GLMakie.GLFW.is_initialized()
+      GLMakie.GLFW.Init()
+    end
     screen = GLMakie.Screen(; window=QMLWindow(fbo, quickwin), start_renderloop=false)
     return setup_screen(screen, fbo)
   catch exc
