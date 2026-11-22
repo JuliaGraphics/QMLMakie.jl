@@ -114,7 +114,45 @@ function Base.display(screen::GLMakie.Screen{QMLWindow}, scene::Scene)
   return
 end
 
+# This override runs on the main thread at exit, not using any OpenGL context
+function GLMakie.destroy!(screen::GLMakie.Screen{QMLWindow})
+  if !isnothing(screen.scene)
+    Makie.disconnect_screen(screen.scene, screen)
+    delete!(screen, screen.scene)
+    screen.scene = nothing
+  end
+
+  @assert isempty(screen.renderlist)
+  @assert isempty(screen.cache2plot)
+  @assert isempty(screen.cache)
+
+  empty!(screen.screen2scene)
+  empty!(screen.screens)
+  Observables.clear(screen.px_per_unit)
+  Observables.clear(screen.scalefactor)
+  Observables.clear(screen.render_tick)
+  Observables.clear(screen.window_open)
+
+  delete!(GLMakie.SCREEN_REUSE_POOL, screen)
+  delete!(GLMakie.ALL_SCREENS, screen)
+  if screen in GLMakie.SINGLETON_SCREEN
+      empty!(GLMakie.SINGLETON_SCREEN)
+  end
+
+  return
+end
+
 function on_context_destroy(screen)
+  # Perform all cleanup needing a context here
+  # Copied from GLMakie.destroy! and GLMakie.empty!
+  for plot in collect(values(screen.cache2plot))
+    delete!(screen, Makie.rootparent(plot), plot)
+  end
+  foreach(GLMakie.destroy!, screen.postprocessors) # before texture atlas, otherwise it regenerates
+  GLMakie.destroy!(screen.framebuffer)
+  GLMakie.cleanup_texture_atlas!(qmlwindow(screen))
+  GLMakie.GLAbstraction.free(screen.shader_cache)
+  qmlwindow(screen).context.valid = false
   return
 end
 
@@ -280,6 +318,7 @@ function register_event_handlers()
 end
 
 function __init__()
+  GLMakie.GLFW.ENABLE_THREAD_ASSERTIONS[] = false
   QML.setGraphicsApi(QML.OpenGL)
   QML.define_julia_module_makie(QMLMakie)
   global _render_cfunc = @safe_cfunction(renderfunction, Cvoid, (Any,Any))
